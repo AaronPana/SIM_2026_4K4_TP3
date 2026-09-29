@@ -6,6 +6,38 @@ La app tiene dos partes: una **presentación** en slides con las reglas del domi
 
 ---
 
+## Índice
+
+1. [Cómo iniciar](#cómo-iniciar)
+2. [El modelo](#el-modelo)
+   - [Red de actividades](#red-de-actividades)
+   - [Actividades y distribuciones](#actividades-y-distribuciones)
+   - [Generador congruencial mixto](#generador-congruencial-mixto)
+   - [Precisión](#precisión)
+   - [Decisiones del grupo](#decisiones-del-grupo)
+3. [Estimadores](#estimadores)
+   - [Cálculo e interpretación](#cálculo-e-interpretación)
+   - [Distribución de frecuencias e intervalos](#distribución-de-frecuencias-e-intervalos)
+   - [Empates en la ruta crítica](#empates-en-la-ruta-crítica)
+4. [Análisis de resultados](#análisis-de-resultados)
+   - [Ejemplo con los valores por defecto](#ejemplo-con-los-valores-por-defecto)
+   - [Por qué A-B casi siempre es la ruta crítica](#por-qué-a-b-casi-siempre-es-la-ruta-crítica)
+   - [Por qué el histograma se concentra en cuatro intervalos](#por-qué-el-histograma-se-concentra-en-cuatro-intervalos)
+5. [Vector de estado](#vector-de-estado)
+   - [Columnas](#columnas)
+   - [Ejemplo: iteración 1 con los valores por defecto](#ejemplo-iteración-1-con-los-valores-por-defecto)
+   - [Acumulados en las tres primeras iteraciones](#acumulados-en-las-tres-primeras-iteraciones)
+6. [Exportación a Excel](#exportación-a-excel)
+7. [Código](#código)
+   - [Estructura del proyecto](#estructura-del-proyecto)
+   - [Dependencias entre capas](#dependencias-entre-capas)
+   - [Flujo del motor](#flujo-del-motor)
+   - [Configuración](#configuración)
+   - [Glosario](#glosario)
+   - [Tecnologías](#tecnologías)
+
+---
+
 ## Cómo iniciar
 
 Requiere Node.js 20 o superior.
@@ -19,7 +51,9 @@ npm run preview   # sirve la versión compilada
 
 ---
 
-## Contexto
+## El modelo
+
+### Red de actividades
 
 Un pedido se despacha cuando se completan dos líneas de trabajo que arrancan al mismo tiempo: una busca el producto (A → B) y otra prepara la caja (C → D → E). El despacho (F) solo puede empezar cuando **ambas** terminaron.
 
@@ -43,11 +77,9 @@ T = máx(A + B ; C + D + E) + F
 
 La rama más lenta es la **ruta crítica**; la otra tiene una **holgura** igual a la diferencia entre ambas.
 
----
+### Actividades y distribuciones
 
-## Reglas del dominio
-
-### Actividades y distribuciones (valores del enunciado)
+Valores del enunciado:
 
 | Act. | Descripción                  | Distribución         | Parámetros                           | Generación            |
 | ---- | ---------------------------- | -------------------- | ------------------------------------ | --------------------- |
@@ -74,57 +106,128 @@ X(n+1) = (a · X(n) + c) mod m        RND = X / m ∈ [0; 1)
 
 Un único parámetro (completa, 4, 3 o 2 decimales) **trunca** todo número no entero en el momento de calcularlo: RND, D, E, T y estimadores. Nunca se redondea, porque un RND redondeado a 1 haría que la exponencial calcule ln(0). La pantalla también trunca al mostrar.
 
-El Excel exporta los decimales truncados con la misma precisión que se ve en pantalla: la elegida, o 6 decimales si es "Completa" (valor de `DECIMALES_PANTALLA_COMPLETA`).
+### Decisiones del grupo
 
-Para sumar otra precisión, agregar un objeto a `PRECISIONES` en `src/config/constantes.js`, por ejemplo `{ valor: 5, etiqueta: "5 decimales" }`. El valor debe ser un entero y conviene no pasar de 10.
+| Tema           | Decisión                                                                            |
+| -------------- | ----------------------------------------------------------------------------------- |
+| Tiempo mínimo  | Teórico (50 min), así los intervalos quedan fijos antes de simular                  |
+| Límites        | ≤ 60 y ≥ 90 literales; intervalos `[a; b)`. T puede valer exactamente 60, 70 u 80   |
+| Generadores    | Uno por variable, con parámetros independientes                                     |
+| Primer RND     | Sale de X1                                                                          |
+| Conversión     | RND = X / m (no m − 1)                                                              |
+| Precisión      | Truncar, nunca redondear                                                            |
+| Empates        | Si A + B = C + D + E, las dos ramas cuentan como críticas                           |
+| Percentil      | Empírico con las primeras 99 iteraciones (T no es normal)                           |
+| Corte          | Por N iteraciones: el modelo no tiene reloj                                         |
+| Filas visibles | Rango desde–hasta definido antes de simular; la última iteración se muestra siempre |
+| Histograma     | Parámetro propio de observaciones; por defecto N                                    |
 
 ---
 
 ## Estimadores
 
-| Estimador                   | Cálculo                                                                                              |
-| --------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Tiempo mínimo teórico       | Simulacro con el mínimo de cada actividad (E mínima = 0): máx(15 + 20 ; 5 + 5 + 0) + 15 = **50 min** |
-| Tiempo promedio             | ΣT / n                                                                                               |
-| Duración de cada actividad  | Promedio acumulado de B, D, E y F                                                                    |
-| Proporción crítica          | Contador de cada rama crítica / n. F es crítica siempre                                              |
-| Holgura promedio            | Suma acumulada de la holgura / n                                                                     |
-| Tiempo a fijar al 95 %      | Percentil empírico de las primeras 99 T: posición ⌈0,95 · (99 + 1)⌉ = 95                             |
-| P(T ≤ 60min) y P(T ≥ 90min) | Contador / n                                                                                         |
-| Distribución de frecuencias | 10 intervalos desde el mínimo teórico: 9 de ancho 90 / 9 = 10 min y el último `[140; ∞)`             |
+### Cálculo e interpretación
 
 Todos se actualizan en cada iteración a partir del vector anterior.
 
+| Estimador                   | Cálculo                                                                                              | Qué significa                                                                              |
+| --------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| T (variable objetivo)       | máx(A + B ; C + D + E) + F                                                                           | Cuánto tardó en salir ese pedido.                                                          |
+| Tiempo mínimo teórico       | Simulacro con el mínimo de cada actividad (E mínima = 0): máx(15 + 20 ; 5 + 5 + 0) + 15 = **50 min** | Punto de partida de los intervalos de frecuencia.                                          |
+| Tiempo promedio             | ΣT / n                                                                                               | Cuánto tarda un pedido en promedio.                                                        |
+| Duración de cada actividad  | Promedio acumulado de B, D, E y F                                                                    | Cuánto tarda en promedio cada tarea.                                                       |
+| Proporción crítica          | Contador de cada rama crítica / n. F es crítica siempre                                              | Qué tareas conviene acelerar: las que más seguido demoran el despacho.                     |
+| Holgura promedio            | Suma acumulada de la holgura / n                                                                     | Cuántos minutos, en promedio, le sobran a la rama que no es crítica.                       |
+| Tiempo a fijar al 95 %      | Percentil empírico de las primeras 99 T: posición ⌈0,95 · (99 + 1)⌉ = 95                             | El tiempo que se le puede prometer al cliente cumpliendo en al menos el 95 % de los casos. |
+| P(T ≤ 60min)                | Contador / n                                                                                         | Qué parte de los pedidos sale en 60 minutos o menos.                                       |
+| P(T ≥ 90min)                | Contador / n                                                                                         | Qué parte de los pedidos tarda 90 minutos o más.                                           |
+| Distribución de frecuencias | 10 intervalos desde el mínimo teórico (ver abajo)                                                    | Cómo se reparten los tiempos: dónde se concentran y qué tan dispersos son.                 |
+
+### Distribución de frecuencias e intervalos
+
+Una **distribución de frecuencias** divide el rango de T en intervalos y cuenta cuántas T cayeron en cada uno (frecuencia absoluta) y qué parte del total representan (frecuencia relativa).
+
+Cómo salen los 10 intervalos por defecto:
+
+- El primero empieza en el **tiempo mínimo teórico**: 50 min.
+- Los 9 primeros tienen ancho 90 / 9 = 10 min: `[50; 60)`, `[60; 70)`, …, `[130; 140)`.
+- El último empieza 90 min después del primero y no tiene tope: `[140; ∞)`.
+
+La notación `[a; b)` significa que **a está incluido y b no**. Por ejemplo, T = 60 cae en `[60; 70)`, no en `[50; 60)`.
+
+Por qué importa ≤ contra <: T vale exactamente 60 muy seguido. Con los valores por defecto, P(T ≤ 60) ≈ 50 % pero P(T < 60) ≈ 25 %. Por eso respetamos literalmente los símbolos del enunciado.
+
+### Empates en la ruta crítica
+
+Si A + B = C + D + E, las dos ramas terminan en el mismo minuto: **las dos son críticas** y cada una suma 1 en su contador. Por eso las proporciones de criticidad pueden sumar un poco más de 100 %.
+
+Con precisión completa un empate es prácticamente imposible, porque D y E tienen muchos decimales. Con 2 decimales es posible, pero raro.
+
 ---
 
-## Cómo interpretar los resultados
+## Análisis de resultados
 
-| Estimador                   | Qué significa                                                                              |
-| --------------------------- | ------------------------------------------------------------------------------------------ |
-| T (variable objetivo)       | Cuánto tardó en salir ese pedido.                                                          |
-| Tiempo promedio             | Cuánto tarda un pedido en promedio.                                                        |
-| Duración de cada actividad  | Cuánto tarda en promedio cada tarea.                                                       |
-| Proporción crítica          | Qué tareas conviene acelerar: las que más seguido demoran el despacho.                     |
-| Holgura promedio            | Cuántos minutos, en promedio, le sobran a la rama que no es crítica.                       |
-| Tiempo a fijar al 95 %      | El tiempo que se le puede prometer al cliente cumpliendo en al menos el 95 % de los casos. |
-| P(T ≤ 60min)                | Qué parte de los pedidos sale en 60 minutos o menos.                                       |
-| P(T ≥ 90min)                | Qué parte de los pedidos tarda 90 minutos o más.                                           |
-| Distribución de frecuencias | Cómo se reparten los tiempos: dónde se concentran y qué tan dispersos son.                 |
+### Ejemplo con los valores por defecto
 
-**Ejemplo** con los valores por defecto y 1000 iteraciones:
+Con 1000 iteraciones:
 
 - Tiempo promedio ≈ 66 min: un pedido tarda algo más de una hora en promedio.
 - Tiempo a fijar al 95 % = 80 min: prometiendo 80 minutos se cumple en al menos 95 de cada 100 pedidos.
 - P(T ≤ 60) ≈ 50 %: la mitad de los pedidos sale en una hora o menos.
 - P(T ≥ 90) ≈ 0 %: casi ningún pedido tarda una hora y media o más.
 
-Estos valores dependen de los generadores usados: con otros parámetros del GCM (o con un generador independiente por variable) cambian.
+Estos valores dependen de los generadores usados: con otros parámetros del GCM (o con un generador independiente por variable) cambian, como muestra la sección siguiente.
+
+### Por qué A-B casi siempre es la ruta crítica
+
+- La rama A + B vale entre 35 y 55 min (15 + 20 a 15 + 40; promedio 15 + 31 = 46).
+- La rama C + D + E promedia 5 + 15 + 5 = 25 min. Solo le gana a A + B si E, que es exponencial de media 5, sale muy grande.
+
+Comparación aproximada (5 millones de iteraciones, valores por defecto):
+
+| Estimador     | 4 generadores con los mismos parámetros | 4 generadores independientes |
+| ------------- | --------------------------------------- | ---------------------------- |
+| C–D–E crítica | ≈ 0,66 %                                | ≈ 2,8 %                      |
+| P(T ≤ 60)     | ≈ 50 %                                  | ≈ 43,5 %                     |
+| P(T ≥ 90)     | ≈ 0,09 %                                | ≈ 0,01 %                     |
+| T promedio    | ≈ 66                                    | ≈ 66                         |
+
+Con los mismos parámetros, B, D, E y F usan el mismo RND en cada fila y "se estiran juntas": cuando D y E salen grandes, B también, y la rama A + B sigue ganando. Eso distorsiona las proporciones y las probabilidades; por eso el enunciado pide un generador distinto por variable.
+
+Más iteraciones no cambian estas probabilidades: solo las estiman con más precisión.
+
+### Por qué el histograma se concentra en cuatro intervalos
+
+Cuando A–B es crítica, T = 15 + B + F, y B y F son discretas:
+
+| B \ F | 15 (libre) | 25 (ocupado) |
+| ----- | ---------- | ------------ |
+| 20    | 50         | 60           |
+| 30    | 60         | 70           |
+| 40    | 70         | 80           |
+
+T solo puede valer 50, 60, 70 u 80. El máximo de esa rama es 80, por eso con los valores por defecto casi no hay datos desde `[90; 100)`: solo aparecen cuando gana C–D–E.
+
+Con los mismos parámetros en los cuatro generadores, B y F salen del mismo RND, y cada tramo de RND fija una combinación:
+
+| RND            | B   | F   | T   | Probabilidad |
+| -------------- | --- | --- | --- | ------------ |
+| `[0; 0,25)`    | 20  | 15  | 50  | 25 %         |
+| `[0,25; 0,50)` | 30  | 15  | 60  | 25 %         |
+| `[0,50; 0,65)` | 30  | 25  | 70  | 15 %         |
+| `[0,65; 1)`    | 40  | 25  | 80  | 35 %         |
+
+Eso explica la forma del histograma: cuatro barras con esas alturas y el resto casi vacío.
 
 ---
 
-## El vector de estado, columna por columna
+## Vector de estado
 
-Cada fila de la tabla es una iteración. Las columnas se agrupan igual que en `src/config/columnasVector.js`.
+Cada fila de la tabla es una iteración.
+
+### Columnas
+
+Se agrupan igual que en `src/config/columnasVector.js`.
 
 **n**
 
@@ -194,6 +297,8 @@ Cada fila de la tabla es una iteración. Las columnas se agrupan igual que en `s
 | ----------- | --------------------------------------------------------------------- |
 | T percentil | Tiempo a fijar: la T en la posición 95 de las primeras 99, ordenadas. |
 
+**"T percentil" muestra "—" hasta la iteración 99**, porque necesita las primeras 99 T para ordenarlas. Desde la 99 queda fijo: las iteraciones siguientes no lo modifican.
+
 **Frecuencias absolutas**
 
 Una columna por intervalo (`[50; 60)`, `[60; 70)`, …, `[140; ∞)`) con cuántas T cayeron en cada uno hasta esa iteración.
@@ -218,107 +323,26 @@ Los cuatro generadores tienen los mismos parámetros, así que B, D, E y F usan 
 
 Cada fila se calcula solo con la anterior: Σ T suma la T nueva, el promedio divide por n y el mínimo compara con el mínimo anterior. El promedio de la fila 3 aparece truncado (170 / 3 = 56,666…), nunca redondeado a 56,67.
 
-**"T percentil" muestra "—" hasta la iteración 99**, porque necesita las primeras 99 T para ordenarlas. Desde la 99 queda fijo: las iteraciones siguientes no lo modifican.
+---
+
+## Exportación a Excel
+
+Exporta exactamente lo que muestra la tabla: las filas del rango elegido y la última iteración (resaltada). Para exportar toda la simulación, usar "Mostrar todas las iteraciones" antes de simular.
+
+Los decimales van truncados con la misma precisión que se ve en pantalla (6 si es "Completa", valor de `DECIMALES_PANTALLA_COMPLETA`) y siguen siendo celdas numéricas, así Excel puede operar con ellas. La hoja "Parámetros" conserva los valores tal como se cargaron.
+
+| Hoja                        | Contenido                                               |
+| --------------------------- | ------------------------------------------------------- |
+| Vector de estado            | Encabezado agrupado en dos filas, igual que en pantalla |
+| Estimadores                 | Valores finales y detalle por actividad                 |
+| Distribución de frecuencias | Intervalos, frecuencia absoluta y relativa              |
+| Parámetros                  | Los usados en la corrida                                |
 
 ---
 
-## Por qué A–B casi siempre es la ruta crítica
+## Código
 
-- La rama A + B vale entre 35 y 55 min (15 + 20 a 15 + 40; promedio 15 + 31 = 46).
-- La rama C + D + E promedia 5 + 15 + 5 = 25 min. Solo le gana a A + B si E, que es exponencial de media 5, sale muy grande.
-
-Comparación aproximada (5 millones de iteraciones, valores por defecto):
-
-| Estimador     | 4 generadores con los mismos parámetros | 4 generadores independientes |
-| ------------- | --------------------------------------- | ---------------------------- |
-| C–D–E crítica | ≈ 0,66 %                                | ≈ 2,8 %                      |
-| P(T ≤ 60)     | ≈ 50 %                                  | ≈ 43,5 %                     |
-| P(T ≥ 90)     | ≈ 0,09 %                                | ≈ 0,01 %                     |
-| T promedio    | ≈ 66                                    | ≈ 66                         |
-
-Con los mismos parámetros, B, D, E y F usan el mismo RND en cada fila y "se estiran juntas": cuando D y E salen grandes, B también, y la rama A + B sigue ganando. Eso distorsiona las proporciones y las probabilidades; por eso el enunciado pide un generador distinto por variable.
-
-Más iteraciones no cambian estas probabilidades: solo las estiman con más precisión.
-
----
-
-## Por qué el histograma se concentra en cuatro intervalos
-
-Cuando A–B es crítica, T = 15 + B + F, y B y F son discretas:
-
-| B \ F | 15 (libre) | 25 (ocupado) |
-| ----- | ---------- | ------------ |
-| 20    | 50         | 60           |
-| 30    | 60         | 70           |
-| 40    | 70         | 80           |
-
-T solo puede valer 50, 60, 70 u 80. El máximo de esa rama es 80, por eso con los valores por defecto casi no hay datos desde `[90; 100)`: solo aparecen cuando gana C–D–E.
-
-Con los mismos parámetros en los cuatro generadores, B y F salen del mismo RND, y cada tramo de RND fija una combinación:
-
-| RND            | B   | F   | T   | Probabilidad |
-| -------------- | --- | --- | --- | ------------ |
-| `[0; 0,25)`    | 20  | 15  | 50  | 25 %         |
-| `[0,25; 0,50)` | 30  | 15  | 60  | 25 %         |
-| `[0,50; 0,65)` | 30  | 25  | 70  | 15 %         |
-| `[0,65; 1)`    | 40  | 25  | 80  | 35 %         |
-
-Eso explica la forma del histograma: cuatro barras con esas alturas y el resto casi vacío.
-
----
-
-## Distribución de frecuencias e intervalos
-
-Una **distribución de frecuencias** divide el rango de T en intervalos y cuenta cuántas T cayeron en cada uno (frecuencia absoluta) y qué parte del total representan (frecuencia relativa).
-
-Cómo salen los 10 intervalos por defecto:
-
-- El primero empieza en el **tiempo mínimo teórico**: 50 min.
-- Los 9 primeros tienen ancho 90 / 9 = 10 min: `[50; 60)`, `[60; 70)`, …, `[130; 140)`.
-- El último empieza 90 min después del primero y no tiene tope: `[140; ∞)`.
-
-La notación `[a; b)` significa que **a está incluido y b no**. Por ejemplo, T = 60 cae en `[60; 70)`, no en `[50; 60)`.
-
-Por qué importa ≤ contra <: T vale exactamente 60 muy seguido. Con los valores por defecto, P(T ≤ 60) ≈ 50 % pero P(T < 60) ≈ 25 %. Por eso respetamos literalmente los símbolos del enunciado.
-
----
-
-## Empates en la ruta crítica
-
-Si A + B = C + D + E, las dos ramas terminan en el mismo minuto: **las dos son críticas** y cada una suma 1 en su contador. Por eso las proporciones de criticidad pueden sumar un poco más de 100 %.
-
-Con precisión completa un empate es prácticamente imposible, porque D y E tienen muchos decimales. Con 2 decimales es posible, pero raro.
-
----
-
-## Glosario del código
-
-- **parametro:** texto con puntos que indica dónde está un valor dentro del objeto de parámetros del formulario. Ejemplo: `"generadores.B.x0"` significa generadores → B → x0. Lo usan `CampoNumero`, `setCampo` y los errores de validación.
-- **ruta / RUTAS:** siempre se refiere a la ruta crítica ("A–B", "C–D–E" o "Ambas").
-- **vector anterior / actual:** el estado de la iteración previa y el de la que se está calculando. El motor solo guarda esos dos.
-- **truncar:** cortar decimales sin redondear, con `crearTruncador`.
-
----
-
-## Decisiones del grupo
-
-| Tema           | Decisión                                                                            |
-| -------------- | ----------------------------------------------------------------------------------- |
-| Tiempo mínimo  | Teórico (50 min), así los intervalos quedan fijos antes de simular                  |
-| Límites        | ≤ 60 y ≥ 90 literales; intervalos `[a; b)`. T puede valer exactamente 60, 70 u 80   |
-| Generadores    | Uno por variable, con parámetros independientes                                     |
-| Primer RND     | Sale de X1                                                                          |
-| Conversión     | RND = X / m (no m − 1)                                                              |
-| Precisión      | Truncar, nunca redondear                                                            |
-| Empates        | Si A + B = C + D + E, las dos ramas cuentan como críticas                           |
-| Percentil      | Empírico con las primeras 99 iteraciones (T no es normal)                           |
-| Corte          | Por N iteraciones: el modelo no tiene reloj                                         |
-| Filas visibles | Rango desde–hasta definido antes de simular; la última iteración se muestra siempre |
-| Histograma     | Parámetro propio de observaciones; por defecto N                                    |
-
----
-
-## Estructura del proyecto
+### Estructura del proyecto
 
 ```
 src/
@@ -371,9 +395,7 @@ graph TD
 
 `domain/` no importa nada de React: se puede leer y probar por separado.
 
----
-
-## Flujo del motor
+### Flujo del motor
 
 El motor no guarda la tabla. Recorre las N iteraciones con dos vectores y solo copia las filas del rango pedido, más la última.
 
@@ -396,9 +418,7 @@ flowchart TD
 
 El único buffer extra son las primeras 99 T, necesarias para el percentil.
 
----
-
-## Configuración
+### Configuración
 
 Todo lo fijo del trabajo está en `src/config/constantes.js`:
 
@@ -406,27 +426,18 @@ Todo lo fijo del trabajo está en `src/config/constantes.js`:
 - `PORTADA`: título, curso, grupo e integrantes. Si grupo o integrantes quedan vacíos, no se muestran.
 - `MAX_ITERACIONES` y `MAX_FILAS_CAPTURADAS`: topes para no saturar el navegador.
 - `DECIMALES_PANTALLA_COMPLETA`: decimales visibles cuando la precisión es completa.
+- `PRECISIONES`: para sumar otra precisión, agregar un objeto, por ejemplo `{ valor: 5, etiqueta: "5 decimales" }`. El valor debe ser un entero y conviene no pasar de 10.
 
 Los valores iniciales del formulario están en `src/config/parametrosPorDefecto.js`; el botón "Restaurar valores del enunciado" vuelve a ellos.
 
----
+### Glosario
 
-## Exportación a Excel
+- **parametro:** texto con puntos que indica dónde está un valor dentro del objeto de parámetros del formulario. Ejemplo: `"generadores.B.x0"` significa generadores → B → x0. Lo usan `CampoNumero`, `setCampo` y los errores de validación.
+- **ruta / RUTAS:** siempre se refiere a la ruta crítica ("A–B", "C–D–E" o "Ambas").
+- **vector anterior / actual:** el estado de la iteración previa y el de la que se está calculando. El motor solo guarda esos dos.
+- **truncar:** cortar decimales sin redondear, con `crearTruncador`.
 
-Exporta exactamente lo que muestra la tabla: las filas del rango elegido y la última iteración (resaltada). Para exportar toda la simulación, usar "Mostrar todas las iteraciones" antes de simular.
-
-Los decimales van truncados a la precisión elegida (6 si es "Completa") y siguen siendo celdas numéricas, así Excel puede operar con ellas. La hoja "Parámetros" conserva los valores tal como se cargaron.
-
-| Hoja                        | Contenido                                               |
-| --------------------------- | ------------------------------------------------------- |
-| Vector de estado            | Encabezado agrupado en dos filas, igual que en pantalla |
-| Estimadores                 | Valores finales y detalle por actividad                 |
-| Distribución de frecuencias | Intervalos, frecuencia absoluta y relativa              |
-| Parámetros                  | Los usados en la corrida                                |
-
----
-
-## Tecnologías
+### Tecnologías
 
 | Uso                    | Herramienta                         |
 | ---------------------- | ----------------------------------- |
