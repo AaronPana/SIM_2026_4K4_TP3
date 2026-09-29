@@ -1,0 +1,403 @@
+/* Pantalla del simulador: barra superior, secciones apiladas y tablas de resultados. */
+.barra {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem clamp(1rem, 4vw, 3rem);
+  background: var(--tinta);
+  color: #fff;
+}
+.barra-titulo {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.barra-sub {
+  font-size: 0.875rem;
+  color: #b7c1cd;
+}
+
+.simulador-cuerpo {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem clamp(1rem, 4vw, 3rem) 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.seccion {
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 1.25rem 1.5rem;
+}
+.seccion-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.seccion-titulo {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.aviso {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radio);
+  background: var(--senal-suave);
+  border-left: 4px solid var(--senal);
+}
+.aviso-error {
+  background: var(--error-suave);
+  border-left-color: var(--error);
+}
+
+/* Formulario. */
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.grupo {
+  border: none;
+  border-top: 1px solid var(--linea);
+  padding: 1rem 0 0;
+  margin: 0;
+  min-width: 0;
+}
+.grupo legend {
+  font-weight: 700;
+  font-size: 1.0625rem;
+  padding-right: 0.75rem;
+}
+.grupo-acciones {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.grilla-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem 1rem;
+}
+.grilla-campos-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.campo label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+}
+.campo-unidad {
+  color: var(--texto-suave);
+  font-weight: 400;
+}
+.campo input,
+.campo select,
+.tabla-discreta input {
+  font: inherit;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  color: var(--tinta);
+}
+.campo.con-error input,
+.tabla-discreta .con-error input {
+  border-color: var(--error);
+  background: var(--error-suave);
+}
+.campo-error {
+  color: var(--error);
+  font-size: 0.8125rem;
+}
+.campo-ayuda {
+  color: var(--texto-suave);
+  font-size: 0.8125rem;
+}
+.casilla {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+}
+
+.grilla-generadores {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+.generador {
+  padding: 0.75rem;
+  border: 1px solid var(--linea-suave);
+  border-radius: var(--radio);
+  background: var(--papel);
+}
+.generador-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.generador h4,
+.actividad h4 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.grilla-actividades {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem 1.5rem;
+}
+.actividad-ancha {
+  grid-column: span 2;
+}
+.actividad {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.actividad h4 {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+}
+.actividad-dist {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 0.8125rem;
+  color: var(--texto-suave);
+}
+
+.tabla-discreta table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.tabla-discreta th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--texto-suave);
+  padding: 0 0.25rem 0.25rem;
+}
+.tabla-discreta td {
+  padding: 0.15rem 0.25rem;
+}
+.tabla-discreta td:first-child input[type="text"] {
+  min-width: 11rem;
+}
+.celda-acumulada {
+  color: var(--texto-suave);
+  text-align: right;
+  min-width: 4rem;
+}
+
+.formulario-acciones {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-top: 1rem;
+  border-top: 1px solid var(--linea);
+}
+
+/* Resultados. */
+.panel-estimadores {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+.estimadores-duracion {
+  margin: 0;
+  border-top: 1px solid var(--linea);
+}
+.estimador {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--linea-suave);
+}
+.estimador dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tabla-resumen {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.tabla-resumen caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: 0.4rem;
+}
+.tabla-resumen th,
+.tabla-resumen td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--linea-suave);
+  text-align: left;
+  white-space: nowrap;
+}
+.tabla-resumen th {
+  color: var(--texto-suave);
+  font-weight: 500;
+}
+
+/* Barra proporcional de criticidad dentro de la celda. */
+.barra-critica {
+  display: inline-block;
+  width: 60px;
+  height: 8px;
+  margin-right: 0.5rem;
+  border-radius: 4px;
+  background: linear-gradient(
+    to right,
+    var(--senal) calc(var(--proporcion) * 100%),
+    var(--linea-suave) calc(var(--proporcion) * 100%)
+  );
+}
+
+.histograma svg {
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+}
+.histograma-barra {
+  fill: var(--rama-producto);
+}
+.histograma-valor {
+  font-size: 12px;
+  text-anchor: middle;
+  fill: var(--tinta);
+  font-weight: 600;
+}
+.histograma-eje {
+  font-size: 11px;
+  text-anchor: middle;
+  fill: var(--texto-suave);
+}
+.histograma-eje.rotado {
+  text-anchor: end;
+}
+.histograma-base {
+  stroke: var(--linea);
+}
+.tabla-scroll-x {
+  overflow-x: auto;
+}
+
+/* Vector de estado: scroll propio, encabezado y primera columna fijos. */
+.tabla-vector {
+  max-height: 70vh;
+  overflow: auto;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  margin-top: 0.75rem;
+}
+.tabla-vector table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+.tabla-vector th,
+.tabla-vector td {
+  padding: 0 0.6rem;
+  height: 32px;
+  border-bottom: 1px solid var(--linea-suave);
+  border-right: 1px solid var(--linea-suave);
+  text-align: right;
+}
+.tabla-vector thead th {
+  position: sticky;
+  background: var(--tinta);
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  z-index: 2;
+}
+.tabla-vector .fila-grupos th {
+  top: 0;
+  background: var(--tinta-2);
+}
+.tabla-vector .fila-titulos th {
+  top: 32px;
+}
+.tabla-vector .col-fija {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--superficie);
+  font-weight: 600;
+}
+.tabla-vector thead .col-fija {
+  z-index: 3;
+}
+.tabla-vector .celda-texto {
+  text-align: left;
+}
+.tabla-vector tbody tr:hover td {
+  background: #f7f9fb;
+}
+.tabla-vector tbody tr.fila-ultima td {
+  background: var(--senal-suave);
+  font-weight: 600;
+}
+.tabla-vector .fila-separador td {
+  text-align: left;
+  color: var(--texto-suave);
+  background: var(--papel);
+}
+.separador-texto {
+  position: sticky;
+  left: 0.6rem;
+}
+
+@media (max-width: 1000px) {
+  .grilla-actividades,
+  .grilla-generadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .grilla-generadores,
+  .grilla-actividades {
+    grid-template-columns: 1fr;
+  }
+  .actividad-ancha {
+    grid-column: auto;
+  }
+  .panel-estimadores {
+    grid-template-columns: 1fr;
+  }
+  .grilla-campos-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
